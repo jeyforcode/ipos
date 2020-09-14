@@ -13,17 +13,28 @@ const HomeScreen = ({ navigation }) => {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: 'white' }}>
         <View style={{ flex: 1 }}>
-          <Mytext text="SQLite Example" />
+          <Mytext text="Print Bluetooth" />
           <Mybutton
             title="Print"
             customClick={() => navigation.navigate('Print')}
           />
         </View>
+        <View style={{ flex: 1 }}>
+          <Mytext text="Semua Transaksi" />
+          <Mybutton
+            title="ViewAll"
+            customClick={() => navigation.navigate('ViewAll')}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Mytext text="Insert Transaksi" />
+          <Mybutton
+            title="InsertTransaksi"
+            customClick={() => navigation.navigate('InsertTransaksi')}
+          />
+        </View>
         <Text style={{ fontSize: 18, textAlign: 'center', color: 'grey' }}>
-          Example of SQLite Database in React Native
-        </Text>
-        <Text style={{ fontSize: 16, textAlign: 'center', color: 'grey' }}>
-          www.aboutreact.com
+          iPOS Praktek dr. Siska Ralisa
         </Text>
       </View>
     </SafeAreaView>

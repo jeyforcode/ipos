@@ -9,6 +9,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 
 import HomeScreen from './pages/HomeScreen';
 import PrintScreen from './pages/PrintScreen';
+import ViewAllTransaksi from './pages/ViewAllTransaksi';
+import InsertTransaksi from './pages/InsertTransaksi';
 
 const Stack = createStackNavigator();
 
@@ -35,6 +37,34 @@ const App = () => {
           component={PrintScreen}
           options={{
             title: 'Print Screen', //Set Header Title
+            headerStyle: {
+              backgroundColor: '#f4511e', //Set Header color
+            },
+            headerTintColor: '#fff', //Set Header text color
+            headerTitleStyle: {
+              fontWeight: 'bold', //Set Header text style
+            },
+          }}
+        />
+        <Stack.Screen
+          name="ViewAll"
+          component={ViewAllTransaksi}
+          options={{
+            title: 'View All Transaksi', //Set Header Title
+            headerStyle: {
+              backgroundColor: '#f4511e', //Set Header color
+            },
+            headerTintColor: '#fff', //Set Header text color
+            headerTitleStyle: {
+              fontWeight: 'bold', //Set Header text style
+            },
+          }}
+        />
+        <Stack.Screen
+          name="InsertTransaksi"
+          component={InsertTransaksi}
+          options={{
+            title: 'Insert Transaksi', //Set Header Title
             headerStyle: {
               backgroundColor: '#f4511e', //Set Header color
             },
