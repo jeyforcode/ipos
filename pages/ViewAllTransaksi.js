@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { FlatList, Text, View, SafeAreaView } from 'react-native';
 import { openDatabase } from 'react-native-sqlite-storage';
 
-var db = openDatabase({name: 'ipos.db', createFromLocation: '~/ipos.db', location: 'Library'}, (open) => { console.log('success') }, (e) => { console.log(e) });
+var db = openDatabase({name: 'ipraktek.db', createFromLocation: '~/ipraktek.db', location: 'Library'}, (open) => { console.log('success') }, (e) => { console.log(e) });
 
 const ViewAllTransaksi = () => {
   let [flatListItems, setFlatListItems] = useState([]);
