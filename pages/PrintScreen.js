@@ -15,7 +15,8 @@ import {ActivityIndicator,
     Switch,
     TouchableOpacity,
     Dimensions,
-    ToastAndroid} from 'react-native';
+    ToastAndroid,
+    AsyncStorage} from 'react-native';
 import {BluetoothEscposPrinter, BluetoothManager, BluetoothTscPrinter} from "react-native-bluetooth-escpos-printer";
 // import EscPos from "./escpos";
 // import Tsc from "./tsc";
@@ -39,6 +40,19 @@ export default class Home extends Component {
             debugMsg: ''
         }
     }
+
+    _retrieveData = async () => {
+        try {
+            const value = await AsyncStorage.getItem('transaksi');
+            if (value !== null) {
+            // We have data!!
+            console.log(value);
+            return value;
+            }
+        } catch (error) {
+            // Error retrieving data
+        }
+    };
 
     componentDidMount() {//alert(BluetoothManager)
         BluetoothManager.isBluetoothEnabled().then((enabled)=> {
@@ -87,6 +101,7 @@ export default class Home extends Component {
                     ToastAndroid.show("Device Not Support Bluetooth !", ToastAndroid.LONG);
                 }
             ))
+            // this._retrieveData();
         }
     }
 
@@ -142,7 +157,7 @@ export default class Home extends Component {
         let items = [];
         for(let i in rows){
             let row = rows[i];
-            if(row.address) {
+            if(row.address && row.name === 'MTP-2') {
                 items.push(
                     <TouchableOpacity key={new Date().getTime()+i} style={styles.wtf} onPress={()=>{
                     this.setState({
@@ -236,78 +251,87 @@ export default class Home extends Component {
                 </View>
 
                 <View style={{flexDirection:"row",justifyContent:"space-around",paddingVertical:30}}>
-                <Button onPress={async () => {
-                    await BluetoothEscposPrinter.printBarCode("123456789012", BluetoothEscposPrinter.BARCODETYPE.JAN13, 3, 120, 0, 2);
-                    await  BluetoothEscposPrinter.printText("\r\n\r\n\r\n", {});
-                }} title="Print BarCode"/>
                 <Button title="Print Receipt" onPress={async () => {
                     try {
-                        await BluetoothEscposPrinter.printerInit();
-                        await BluetoothEscposPrinter.printerLeftSpace(0);
+                        let dataPrint = await this._retrieveData()
+                        dataPrint = JSON.parse(dataPrint) || []
+                        if(dataPrint.length) {
+                            await BluetoothEscposPrinter.printerInit();
+                            await BluetoothEscposPrinter.printerLeftSpace(0);
 
-                        await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-                        await BluetoothEscposPrinter.setBlob(0);
-                        await  BluetoothEscposPrinter.printText("Praktek dr. Siska Ralisa\r\n", {
-                            encoding: 'GBK',
-                            codepage: 0,
-                            widthtimes: 0,
-                            heigthtimes: 1,
-                            fonttype: 1
-                        });
-                        await BluetoothEscposPrinter.setBlob(0);
-                        await  BluetoothEscposPrinter.printText("Kalibata Timur Raya No.18\r\n", {
-                            encoding: 'GBK',
-                            codepage: 0,
-                            widthtimes: 0,
-                            heigthtimes: 0,
-                            fonttype: 1
-                        });
-                        await BluetoothEscposPrinter.setBlob(0);
-                        await  BluetoothEscposPrinter.printText("Jakarta Selatan\r\n", {
-                            encoding: 'GBK',
-                            codepage: 0,
-                            widthtimes: 0,
-                            heigthtimes: 0,
-                            fonttype: 1
-                        });
-                        await BluetoothEscposPrinter.setBlob(0);
-                        await  BluetoothEscposPrinter.printText("Telp. 081213382994\r\n\r\n", {
-                            encoding: 'GBK',
-                            codepage: 0,
-                            widthtimes: 0,
-                            heigthtimes: 0,
-                            fonttype: 1
-                        }); 
-                        await BluetoothEscposPrinter.printColumn([10, 2, 20],
-                            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
-                            ['No', ':', '2020091401'], {});
-                        await BluetoothEscposPrinter.printColumn([10, 2, 20],
-                            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
-                            ['Kasir', ':', 'Tiwi'], {});
-                        await BluetoothEscposPrinter.printColumn([10, 2, 20],
-                            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
-                            ['Tanggal', ':', (dateFormat(new Date(), "yyyy-mm-dd h:MM:ss"))], {});
-                        await  BluetoothEscposPrinter.printText("--------------------------------\r\n", {});
-                        let columnWidths = [11, 3, 9, 9];
-                        await BluetoothEscposPrinter.printColumn(columnWidths,
-                            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-                            ["Helixim", '2', '15.000', '30.000'], {});
-                        await BluetoothEscposPrinter.printColumn(columnWidths,
-                            [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-                            ["Panadol", '1', '8.000', '8.000'], {});
-                        await  BluetoothEscposPrinter.printText("--------------------------------\r\n", {});
-                        await BluetoothEscposPrinter.printColumn([20, 12],
-                            [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-                            ['Total:', '38.000'], {});
-                        await BluetoothEscposPrinter.printColumn([20, 12],
-                            [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-                            ['Tunai:', '50.000'], {});
-                        await BluetoothEscposPrinter.printColumn([20, 12],
-                            [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
-                            ['Kembali:', '12.000'], {});
-                        await  BluetoothEscposPrinter.printText("\r\n\r\n", {});
-                        await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-                        await  BluetoothEscposPrinter.printText("Terima Kasih\r\n\r\n\r\n", {});
+                            await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+                            await BluetoothEscposPrinter.setBlob(0);
+                            await  BluetoothEscposPrinter.printText("Praktek dr. Siska Ralisa\r\n", {
+                                encoding: 'GBK',
+                                codepage: 0,
+                                widthtimes: 0,
+                                heigthtimes: 1,
+                                fonttype: 1
+                            });
+                            await BluetoothEscposPrinter.setBlob(0);
+                            await  BluetoothEscposPrinter.printText("Kalibata Timur Raya No.18\r\n", {
+                                encoding: 'GBK',
+                                codepage: 0,
+                                widthtimes: 0,
+                                heigthtimes: 0,
+                                fonttype: 1
+                            });
+                            await BluetoothEscposPrinter.setBlob(0);
+                            await  BluetoothEscposPrinter.printText("Jakarta Selatan\r\n", {
+                                encoding: 'GBK',
+                                codepage: 0,
+                                widthtimes: 0,
+                                heigthtimes: 0,
+                                fonttype: 1
+                            });
+                            await BluetoothEscposPrinter.setBlob(0);
+                            await  BluetoothEscposPrinter.printText("Telp. 081213382994\r\n\r\n", {
+                                encoding: 'GBK',
+                                codepage: 0,
+                                widthtimes: 0,
+                                heigthtimes: 0,
+                                fonttype: 1
+                            }); 
+                            await BluetoothEscposPrinter.printColumn([10, 2, 20],
+                                [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
+                                ['No', ':', dataPrint[10].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([10, 2, 20],
+                                [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
+                                ['Kasir', ':', dataPrint[4].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([10, 2, 20],
+                                [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.LEFT],
+                                ['Tanggal', ':', dataPrint[5].toString()], {});
+                            await  BluetoothEscposPrinter.printText("--------------------------------\r\n", {});
+                            let columnWidths = [20, 12];
+                            if(dataPrint[7].length) {
+                                for(let el of dataPrint[7]) {
+                                    await BluetoothEscposPrinter.printColumn(columnWidths,
+                                        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                        [el.item.toString(), el.harga.toString()], {});
+                                }
+                            }
+                            await  BluetoothEscposPrinter.printText("--------------------------------\r\n", {});
+                            await BluetoothEscposPrinter.printColumn([20, 12],
+                                [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                ['Sub Total:', dataPrint[1].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([20, 12],
+                                [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                ['Diskon:', dataPrint[2].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([20, 12],
+                                [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                ['Grand Total:', dataPrint[3].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([20, 12],
+                                [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                ['Tunai:', dataPrint[8].toString()], {});
+                            await BluetoothEscposPrinter.printColumn([20, 12],
+                                [BluetoothEscposPrinter.ALIGN.RIGHT, BluetoothEscposPrinter.ALIGN.RIGHT],
+                                ['Kembali:', dataPrint[9].toString()], {});
+                            await  BluetoothEscposPrinter.printText("\r\n\r\n", {});
+                            await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+                            await  BluetoothEscposPrinter.printText("Terima Kasih\r\n\r\n\r\n", {});
+                        } else {
+                            alert("Data tidak ada");
+                        }
                     } catch (e) {
                         alert(e.message || "ERROR");
                     }

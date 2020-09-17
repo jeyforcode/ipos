@@ -10,13 +10,14 @@ import {
   Alert,
   SafeAreaView,
   Text,
-  Button
+  AsyncStorage
 } from 'react-native';
 import Mytextinput from './components/Mytextinput';
 import Mybutton from './components/Mybutton';
 import Mytext from './components/Mytext';
 import { openDatabase } from 'react-native-sqlite-storage';
 import Modal from 'react-native-modal';
+import { BluetoothEscposPrinter, BluetoothManager, BluetoothTscPrinter } from "react-native-bluetooth-escpos-printer";
 
 //Connction to access the pre-populated user_db.db
 var db = openDatabase({ name: 'ipraktek.db', createFromLocation: '~/ipraktek.db', location: 'Library' }, (open) => { console.log('success') }, (e) => { console.log(e) });
@@ -33,26 +34,61 @@ const InsertTransaksi = ({ navigation }) => {
   let [Harga, setHarga] = useState('');
   let [IsModalVisible, setIsModalVisible] = useState(false);
   let [ListDetail, setListDetail] = useState([]);
+  let [IsPrintDisable, setIsPrintDisable] = useState(true);
+  let [IsCreateDisable, setIsCreateDisable] = useState(true);
+  let [IsAddItemDisable, setIsAddItemDisable] = useState(false);
+  let [IsSelesaiDisable, setIsSelesaiDisable] = useState(false);
+  let [Tunai, setTunai] = useState('');
+  let [Kembali, setKembali] = useState('');
+  let [IsModalPrintVisible, setIsModalPrintVisible] = useState(false);
+  let [TransaksiId, setTransaksiId] = useState('');
+
+  let getTotalDetail = () => {
+    const totalDetail = ListDetail.reduce(function (accumulator, detail) {
+      return accumulator + parseInt(detail.harga);
+    }, 0);
+    return parseInt(totalDetail)
+  }
 
   let calcTotalFromDiskon = (Diskon) => {
     let total = 0;
     if (ListDetail.length) {
-      const totalDetail = ListDetail.reduce(function (accumulator, detail) {
-        return accumulator + parseInt(detail.harga);
-      }, 0);
-      total = parseInt(totalDetail) - (parseInt(Diskon) || 0);
+      const totalDetail = getTotalDetail();
+      total = totalDetail - (parseInt(Diskon) || 0);
       setSubTotal(totalDetail)
     }
     setTotal(total)
   }
 
+  let calcKembali = (Tunai) => {
+    const kembali = parseInt(Tunai) - parseInt(Total)
+    if(kembali >= 0) {
+      setIsSelesaiDisable(false)
+    }
+    setKembali(kembali);
+  }
+
   let toggleModal = (type) => {
-    if (['open', 'close'].includes(type)) setIsModalVisible(!IsModalVisible);
+    if (['open', 'close'].includes(type)) {
+      setIsModalVisible(!IsModalVisible);
+      if (IsModalVisible) {
+        const totalDetail = getTotalDetail();
+        const total = totalDetail - (parseInt(Diskon) || 0);
+        setSubTotal(totalDetail)
+        setTotal(total)
+      }
+    }
     if (type === 'save') {
       ListDetail.push({ item: Item, harga: Harga });
       setListDetail(ListDetail);
+      setIsCreateDisable(false);
     }
   };
+
+  let togglePrintModal = () => {
+    setIsModalPrintVisible(!IsModalPrintVisible);
+    // navigation.navigate('HomeScreen')
+  }
 
   let create_transaction = () => {
     if (!Pasien || !ListDetail.length) {
@@ -67,13 +103,18 @@ const InsertTransaksi = ({ navigation }) => {
         (tx, results) => {
           console.log('Results', results.rowsAffected);
           if (results.rowsAffected > 0) {
+            setTransaksiId(results.insertId)
             Alert.alert(
               'Success',
-              'You are Registered Successfully',
+              'Data berhasil disimpan',
               [
                 {
                   text: 'Ok',
-                  onPress: () => navigation.navigate('HomeScreen'),
+                  onPress: () => {
+                    setIsPrintDisable(false);
+                    setIsCreateDisable(true);
+                    setIsAddItemDisable(true);
+                  },
                 },
               ],
               { cancelable: false }
@@ -84,6 +125,17 @@ const InsertTransaksi = ({ navigation }) => {
         }
       );
     });
+  };
+
+  let storeData = async () => {
+    try {
+      await AsyncStorage.setItem(
+        'transaksi',
+        JSON.stringify([Pasien, SubTotal, Diskon, Total, 'Tiwi', dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss"), Catatan, ListDetail, Tunai, Kembali, TransaksiId])
+      );
+    } catch (error) {
+      // Error saving data
+    }
   };
 
   return (
@@ -116,16 +168,17 @@ const InsertTransaksi = ({ navigation }) => {
               {ListDetail.map((val, idx) => {
                 return (
                   <React.Fragment>
-                    <View key={`item${idx}`}>
-                      <Mytext text={`Item: ${val.item}`} />
-                      <Mytext text={`Harga: ${val.harga}`} />
+                    <View key={`view${idx}`}>
+                      <Mytext key={`item${idx}`} text={`Item: ${val.item}`} />
+                      <Mytext key={`harga${idx}`} text={`Harga: ${val.harga}`} />
                     </View>
                   </React.Fragment>
                 );
               })}
               <Mytext text={`Grand Total: ${(Total || 0)}`} />
-              <Mybutton title="Add Item" customClick={() => toggleModal('open')} />
-              <Mybutton title="Submit" customClick={create_transaction} />
+              <Mybutton disabled={IsAddItemDisable} title="Tambah Item" customClick={() => toggleModal('open')} />
+              <Mybutton disabled={IsCreateDisable} title="Simpan Data" customClick={create_transaction} />
+              <Mybutton disabled={IsPrintDisable} title="Print Struct" customClick={() => togglePrintModal()} />
               <Modal isVisible={IsModalVisible}>
                 <View style={{ flex: 1, backgroundColor: 'white', justifyContent: 'center' }}>
                   <Mytextinput
@@ -141,8 +194,27 @@ const InsertTransaksi = ({ navigation }) => {
                     }
                     style={{ padding: 10 }}
                   />
-                  <Mybutton title="Save Data" customClick={() => toggleModal('save')} />
-                  <Mybutton title="Hide Modal" customClick={() => toggleModal('close')} />
+                  <Mybutton title="Simpan Data" customClick={() => toggleModal('save')} />
+                  <Mybutton title="Kembali" customClick={() => toggleModal('close')} />
+                </View>
+              </Modal>
+              <Modal isVisible={IsModalPrintVisible}>
+                <View style={{ flex: 1, backgroundColor: 'white', justifyContent: 'center' }}>
+                  <Mytext text={`Grand Total: ${(Total || 0)}`} />
+                  <Mytextinput
+                    placeholder="Tunai"
+                    onChangeText={(Tunai) => {
+                      setTunai(Tunai);
+                      calcKembali(Tunai);
+                    }}
+                    style={{ padding: 10 }}
+                  />
+                  <Mytext text={`Uang Kembali: ${(Kembali || 0)}`} />
+                  <Mybutton disabled={IsSelesaiDisable} title="Selesai" customClick={async () => { 
+                    await storeData();
+                    togglePrintModal();
+                    navigation.navigate('Print');
+                  }} />
                 </View>
               </Modal>
             </KeyboardAvoidingView>
