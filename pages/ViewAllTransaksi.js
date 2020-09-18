@@ -13,7 +13,7 @@ const ViewAllTransaksi = () => {
 
   useEffect(() => {
     db.transaction((tx) => {
-      tx.executeSql('SELECT * FROM transaksi', [], (tx, results) => {
+      tx.executeSql('SELECT * FROM transaksi ORDER BY trs_id DESC', [], (tx, results) => {
         var temp = [];
         for (let i = 0; i < results.rows.length; ++i)
           temp.push(results.rows.item(i));
@@ -39,6 +39,7 @@ const ViewAllTransaksi = () => {
         <Text>Pasien: {item.trs_pasien}</Text>
         <Text>Total: {item.trs_total}</Text>
         <Text>Tanggal: {item.trs_date}</Text>
+        <Text>Catatan: {(item.trs_catatan || '-')}</Text>
       </View>
     );
   };

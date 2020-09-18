@@ -251,11 +251,13 @@ export default class Home extends Component {
                 </View>
 
                 <View style={{flexDirection:"row",justifyContent:"space-around",paddingVertical:30}}>
+                <Button title="Kembali" onPress={() => this.props.navigation.navigate('HomeScreen')} />
                 <Button title="Print Receipt" onPress={async () => {
                     try {
                         let dataPrint = await this._retrieveData()
                         dataPrint = JSON.parse(dataPrint) || []
                         if(dataPrint.length) {
+                            dataPrint[2] = dataPrint[2] || '-';
                             await BluetoothEscposPrinter.printerInit();
                             await BluetoothEscposPrinter.printerLeftSpace(0);
 

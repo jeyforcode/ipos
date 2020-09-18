@@ -10,14 +10,16 @@ import {
   Alert,
   SafeAreaView,
   Text,
-  AsyncStorage
+  AsyncStorage,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 import Mytextinput from './components/Mytextinput';
 import Mybutton from './components/Mybutton';
 import Mytext from './components/Mytext';
 import { openDatabase } from 'react-native-sqlite-storage';
 import Modal from 'react-native-modal';
-import { BluetoothEscposPrinter, BluetoothManager, BluetoothTscPrinter } from "react-native-bluetooth-escpos-printer";
+import { Table, TableWrapper, Row, Cell } from 'react-native-table-component';
 
 //Connction to access the pre-populated user_db.db
 var db = openDatabase({ name: 'ipraktek.db', createFromLocation: '~/ipraktek.db', location: 'Library' }, (open) => { console.log('success') }, (e) => { console.log(e) });
@@ -37,11 +39,15 @@ const InsertTransaksi = ({ navigation }) => {
   let [IsPrintDisable, setIsPrintDisable] = useState(true);
   let [IsCreateDisable, setIsCreateDisable] = useState(true);
   let [IsAddItemDisable, setIsAddItemDisable] = useState(false);
-  let [IsSelesaiDisable, setIsSelesaiDisable] = useState(false);
+  let [IsSelesaiDisable, setIsSelesaiDisable] = useState(true);
   let [Tunai, setTunai] = useState('');
   let [Kembali, setKembali] = useState('');
   let [IsModalPrintVisible, setIsModalPrintVisible] = useState(false);
   let [TransaksiId, setTransaksiId] = useState('');
+  let [DataTable, setDataTable] = useState({
+    tableHead: ['Item', 'Harga', 'Action'],
+    tableData: []
+  });
 
   let getTotalDetail = () => {
     const totalDetail = ListDetail.reduce(function (accumulator, detail) {
@@ -62,26 +68,35 @@ const InsertTransaksi = ({ navigation }) => {
 
   let calcKembali = (Tunai) => {
     const kembali = parseInt(Tunai) - parseInt(Total)
-    if(kembali >= 0) {
+    if (kembali >= 0) {
       setIsSelesaiDisable(false)
+    } else {
+      setIsSelesaiDisable(true)
     }
     setKembali(kembali);
+  }
+
+  let calcGrandTotal = () => {
+    const totalDetail = getTotalDetail();
+    const total = totalDetail - (parseInt(Diskon) || 0);
+    setSubTotal(totalDetail)
+    setTotal(total)
   }
 
   let toggleModal = (type) => {
     if (['open', 'close'].includes(type)) {
       setIsModalVisible(!IsModalVisible);
       if (IsModalVisible) {
-        const totalDetail = getTotalDetail();
-        const total = totalDetail - (parseInt(Diskon) || 0);
-        setSubTotal(totalDetail)
-        setTotal(total)
+        calcGrandTotal()
       }
     }
     if (type === 'save') {
       ListDetail.push({ item: Item, harga: Harga });
       setListDetail(ListDetail);
       setIsCreateDisable(false);
+      setDataTable({ ...DataTable, tableData: ListDetail })
+      setItem('')
+      setHarga('')
     }
   };
 
@@ -92,7 +107,12 @@ const InsertTransaksi = ({ navigation }) => {
 
   let create_transaction = () => {
     if (!Pasien || !ListDetail.length) {
-      alert('Please fill mandatory input');
+      alert('Oops.. nama pasien masih kosong');
+      return;
+    }
+
+    if(Total < 0) {
+      alert('Oops.. grand total tidak sesuai');
       return;
     }
 
@@ -119,7 +139,7 @@ const InsertTransaksi = ({ navigation }) => {
               ],
               { cancelable: false }
             );
-          } else alert('Registration Failed');
+          } else alert('Data gagal disimpan');
         }, (err) => {
           console.log("SQL Error: " + JSON.stringify(err))
         }
@@ -138,6 +158,59 @@ const InsertTransaksi = ({ navigation }) => {
     }
   };
 
+  const deleteItem = (data) => {
+    if(IsCreateDisable) {
+      alert('Oops.. data tidak bisa dihapus');
+      return true;
+    }
+    Alert.alert(
+      'Konfirmasi Hapus',
+      'Mau hapus data ini?',
+      [
+        {
+          text: 'Tidak',
+          onPress: () => {
+            console.log("Cancel Pressed")
+          },
+        },
+        {
+          text: 'Hapus',
+          onPress: () => {
+            ListDetail = ListDetail.filter(val => val.item !== data.item);
+            setDataTable({ ...DataTable, tableData: ListDetail });
+            setListDetail(ListDetail);
+            calcGrandTotal();
+            if(!ListDetail.length) {
+              setIsCreateDisable(true);
+              if(IsAddItemDisable && !IsPrintDisable) {
+                setIsAddItemDisable(false);
+              }
+              setIsPrintDisable(true);
+            }
+          },
+        }
+      ],
+      { cancelable: false }
+    );
+  }
+
+  const element = (data) => (
+    <TouchableOpacity onPress={() => deleteItem(data)}>
+      <View style={styles.btn}>
+        <Text style={styles.btnText}>Hapus</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, padding: 16, paddingTop: 30, backgroundColor: '#fff' },
+    head: { height: 40, backgroundColor: '#808B97' },
+    text: { margin: 6 },
+    row: { flexDirection: 'row', backgroundColor: '#FFF1C1' },
+    btn: { width: 58, height: 18, backgroundColor: '#78B7BB', borderRadius: 2 },
+    btnText: { textAlign: 'center', color: '#fff' }
+  });
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: 'white' }}>
@@ -152,7 +225,8 @@ const InsertTransaksi = ({ navigation }) => {
                 style={{ padding: 10 }}
               />
               <Mytextinput
-                placeholder="Diskon"
+                placeholder="Diskon" 
+                keyboardType={'numeric'} 
                 onChangeText={(Diskon) => {
                   setDiskon(Diskon)
                   calcTotalFromDiskon(Diskon)
@@ -165,29 +239,39 @@ const InsertTransaksi = ({ navigation }) => {
                 onChangeText={(Catatan) => setCatatan(Catatan)}
                 style={{ padding: 10 }}
               />
-              {ListDetail.map((val, idx) => {
-                return (
-                  <React.Fragment>
-                    <View key={`view${idx}`}>
-                      <Mytext key={`item${idx}`} text={`Item: ${val.item}`} />
-                      <Mytext key={`harga${idx}`} text={`Harga: ${val.harga}`} />
-                    </View>
-                  </React.Fragment>
-                );
-              })}
+              {DataTable.tableData.length > 0 && (
+                <View style={styles.container}>
+                  <Table borderStyle={{ borderColor: 'transparent' }}>
+                    <Row data={DataTable.tableHead} style={styles.head} textStyle={styles.text} />
+                    {
+                      DataTable.tableData.map((rowData, index) => (
+                        <TableWrapper key={`row1-${index}`} style={styles.row}>
+                          <Cell key={`row2-${index}`} data={rowData.item} textStyle={styles.text} />
+                          <Cell key={`row3-${index}`} data={rowData.harga} textStyle={styles.text} />
+                          <Cell key={`row4-${index}`} data={element(rowData)} textStyle={styles.text} />
+                        </TableWrapper>
+                      ))
+                    }
+                  </Table>
+                </View>
+              )
+              }
               <Mytext text={`Grand Total: ${(Total || 0)}`} />
               <Mybutton disabled={IsAddItemDisable} title="Tambah Item" customClick={() => toggleModal('open')} />
               <Mybutton disabled={IsCreateDisable} title="Simpan Data" customClick={create_transaction} />
-              <Mybutton disabled={IsPrintDisable} title="Print Struct" customClick={() => togglePrintModal()} />
+              <Mybutton disabled={IsPrintDisable} title="Pembayaran" customClick={() => togglePrintModal()} />
               <Modal isVisible={IsModalVisible}>
                 <View style={{ flex: 1, backgroundColor: 'white', justifyContent: 'center' }}>
                   <Mytextinput
                     placeholder="Nama Item"
+                    value={Item}
                     onChangeText={(Item) => setItem(Item)}
                     style={{ padding: 10 }}
                   />
                   <Mytextinput
-                    placeholder="Harga"
+                    placeholder="Harga" 
+                    value={Harga}
+                    keyboardType={'numeric'} 
                     onChangeText={(Harga) => {
                       setHarga(Harga)
                     }
@@ -202,7 +286,8 @@ const InsertTransaksi = ({ navigation }) => {
                 <View style={{ flex: 1, backgroundColor: 'white', justifyContent: 'center' }}>
                   <Mytext text={`Grand Total: ${(Total || 0)}`} />
                   <Mytextinput
-                    placeholder="Tunai"
+                    placeholder="Tunai" 
+                    keyboardType={'numeric'} 
                     onChangeText={(Tunai) => {
                       setTunai(Tunai);
                       calcKembali(Tunai);
@@ -210,11 +295,12 @@ const InsertTransaksi = ({ navigation }) => {
                     style={{ padding: 10 }}
                   />
                   <Mytext text={`Uang Kembali: ${(Kembali || 0)}`} />
-                  <Mybutton disabled={IsSelesaiDisable} title="Selesai" customClick={async () => { 
+                  <Mybutton disabled={IsSelesaiDisable} title="Bayar" customClick={async () => {
                     await storeData();
                     togglePrintModal();
                     navigation.navigate('Print');
                   }} />
+                  <Mybutton title="Kembali" customClick={() => setIsModalPrintVisible(!IsModalPrintVisible)} />
                 </View>
               </Modal>
             </KeyboardAvoidingView>
